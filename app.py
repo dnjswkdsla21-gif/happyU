@@ -1,3 +1,4 @@
+import time
 import streamlit as st
 from google import genai
 from google.genai import types
@@ -51,6 +52,34 @@ with col1:
     )
     generate_btn = st.button("일지 초안 생성하기", type="primary", use_container_width=True)
 
+MODEL_CANDIDATES = [
+    "gemini-3.8-flash",
+    "gemini-3.8-flash-lite",
+    "gemini-2.5-flash-lite",
+]
+
+def generate_with_fallback(client, user_prompt, system_instruction):
+    last_error = None
+    for model_name in MODEL_CANDIDATES:
+        for attempt in range(2):
+            try:
+                return client.models.generate_content(
+                    model=model_name,
+                    contents=user_prompt,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_instruction,
+                        temperature=0.3,
+                    ),
+                ), model_name
+            except Exception as exc:
+                last_error = exc
+                msg = str(exc)
+                if "503" in msg or "UNAVAILABLE" in msg or "429" in msg:
+                    time.sleep(2 * (attempt + 1))
+                    continue
+                break
+    raise last_error
+
 with col2:
     st.subheader("2. 생성된 일지 초안")
     if generate_btn:
@@ -88,14 +117,10 @@ with col2:
             try:
                 with st.spinner("일지 초안을 작성하는 중입니다..."):
                     client = genai.Client(api_key=api_key)
-                    response = client.models.generate_content(
-                        model="gemini-3.8-flash",
-                        contents=user_prompt,
-                        config=types.GenerateContentConfig(
-                            system_instruction=system_instruction,
-                            temperature=0.3,
-                        ),
+                    response, used_model = generate_with_fallback(
+                        client, user_prompt, system_instruction
                     )
+                    st.caption(f"사용 모델: {used_model}")
                     st.markdown(response.text)
                     st.download_button(
                         label="TXT 파일로 다운로드",
