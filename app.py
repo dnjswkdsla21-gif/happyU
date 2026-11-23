@@ -16,11 +16,17 @@ with st.sidebar:
     service_type = st.selectbox("서비스 구분", ["주야간보호", "방문요양"])
     log_type = st.selectbox(
         "일지 양식",
-        ["상태변화기록지", "급여제공결과평가(일지)", "사례관리 상담일지", "보호자 상담/연락 기록지"]
+        [
+            "프로그램일지",
+            "상태변화기록지",
+            "급여제공결과평가(일지)",
+            "사례관리 상담일지",
+            "보호자 상담/연락 기록지",
+        ],
     )
     tone_style = st.selectbox(
         "문체",
-        ["객관적 평어체 (~함, ~시행함)", "정중 보고체 (~하였습니다, ~시행하였습니다)"]
+        ["객관적 평어체 (~함, ~시행함)", "정중 보고체 (~하였습니다, ~시행하였습니다)"],
     )
 
 api_key = None
@@ -37,11 +43,11 @@ col1, col2 = st.columns([1, 1], gap="large")
 
 with col1:
     st.subheader("1. 현장 메모 입력")
-    client_label = st.text_input("대상자 표기", value="A 어르신")
+    client_label = st.text_input("대상자 표기 / 참여 집단", value="주야간보호 이용 어르신")
     memo_input = st.text_area(
-        "오늘 관찰 내용 / 수행 사항",
+        "오늘 관찰 내용 / 프로그램 진행·수행 사항",
         height=260,
-        placeholder="예) 오전 식사 반 공기 드심. 투약 후 1시간 오수. 오후 다리 힘 없다고 하셔서 보행보조차 짚고 20분 산책. 표정 밝아지심."
+        placeholder="예) 오전 인지·미술활동(가을 단풍 나무 만들기) 진행. 참여 14명 중 12명 완성, 2명 촉진 지원. 집중도 높고 완성 후 서로 작품 칭찬함.",
     )
     generate_btn = st.button("일지 초안 생성하기", type="primary", use_container_width=True)
 
@@ -53,6 +59,11 @@ with col2:
         elif not memo_input.strip():
             st.warning("현장 메모를 입력해 주세요.")
         else:
+            program_guide = ""
+            if log_type == "프로그램일지":
+                program_guide = """
+6. 프로그램일지 작성 시 [프로그램 개요 및 목적], [진행 경과 및 지원 내용], [참여자 반응 및 관찰 결과], [평가 및 향후 보완점] 항목으로 구분하여 작성하세요.
+"""
             system_instruction = f"""
 당신은 노인장기요양기관(방문요양, 주야간보호) 실무에 정통한 사회복지사입니다.
 국민건강보험공단 장기요양기관 평가지표 및 장기요양 고시 기준에 부합하도록 현장 메모를 전문 일지 초안으로 변환하세요.
@@ -63,9 +74,9 @@ with col2:
 3. 문체: {tone_style}
 4. 두괄식으로 핵심 사실과 조치 내용을 먼저 제시하고, 주관적 감정이나 추측은 배제하며 관찰된 사실과 개입·조치 사항 중심으로 작성하세요.
 5. 개인정보 보호를 위해 입력된 식별 표기({client_label})를 유지하세요.
-"""
+{program_guide}"""
             user_prompt = f"""
-대상자 표기: {client_label}
+대상자 / 참여 표기: {client_label}
 서비스 구분: {service_type}
 일지 양식: {log_type}
 
@@ -78,7 +89,7 @@ with col2:
                 with st.spinner("일지 초안을 작성하는 중입니다..."):
                     client = genai.Client(api_key=api_key)
                     response = client.models.generate_content(
-                        model="gemini-3.8-flash",
+                        model="gemini-1.5-flash",
                         contents=user_prompt,
                         config=types.GenerateContentConfig(
                             system_instruction=system_instruction,
