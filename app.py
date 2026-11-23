@@ -89,7 +89,7 @@ with col2:
                 with st.spinner("일지 초안을 작성하는 중입니다..."):
                     client = genai.Client(api_key=api_key)
                     response = client.models.generate_content(
-                        model="gemini-1.5-flash",
+                        model="gemini-3.8-flash",
                         contents=user_prompt,
                         config=types.GenerateContentConfig(
                             system_instruction=system_instruction,
